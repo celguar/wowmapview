@@ -11,6 +11,7 @@
 #include <winerror.h>
 #endif
 
+#include "SDL.h"
 #include "wowmapview.h"
 
 #include <ctime>
@@ -27,7 +28,7 @@
 
 int fullscreen = 0;
 
-std::string gamePath = "E:\\Games\\WoW Classic";//"./";
+std::string gamePath = "D:\\twmoa_1171";//"./";
 int expansion = 0;
 FILE *flog;
 bool glogfirst = true;
@@ -42,10 +43,13 @@ Font *f16, *f24, *f32;
 
 AreaDB gAreaDB;
 
-
 void initFonts()
 {
-    ftex = loadTGA("arial.tga",false);
+    ftex = loadTGA("arial.tga", false);
+    if (ftex == 0) {
+        gLog("Failed to load arial.tga font!\n");
+        exit(1);
+    }
 
     f16 = new Font(ftex, 256, 256, 16, "arial.info");
     f24 = new Font(ftex, 256, 256, 24, "arial.info");
