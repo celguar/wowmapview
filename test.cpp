@@ -174,7 +174,7 @@ void Test::display(float t, float dt)
 			f16->print(5, video.yres - 42, "Camera: (%.0f, %.0f, %.0f)", world->camera.x, world->camera.y, world->camera.z);
 
 			// Show the XYZ coordinates relative to the zero point
-			f16->print(5, video.yres - 22, "XYZ: (%.0f, %.0f, %.0f)", -(world->camera.z - ZEROPOINT), (world->camera.x - ZEROPOINT), -(world->camera.y));
+			f16->print(5, video.yres - 22, "XYZ: (%.0f, %.0f, %.0f)", -(world->camera.z - ZEROPOINT), -(world->camera.x - ZEROPOINT), (world->camera.y));
 		}
 
 		if (world->loading) {
