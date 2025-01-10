@@ -1,13 +1,9 @@
 #include "world.h"
-
 #include <cassert>
 
 using namespace std;
 
-
-
 World *gWorld=0;
-
 
 World::World(const char* name):basename(name)
 {
@@ -26,7 +22,6 @@ World::World(const char* name):basename(name)
 	// don't load map objects while still on the menu screen
 	//initDisplay();
 }
-
 
 void World::init()
 {
@@ -353,7 +348,6 @@ void initGlobalVBOs()
 
 }
 
-
 void World::initDisplay()
 {
 	// temp code until I figure out water properly
@@ -390,8 +384,10 @@ void World::initDisplay()
 	ol = new OutdoorLighting("World\\dnc.db");
 
 	initLowresTerrain();
-}
 
+	botNodes.LoadFromDB();
+
+}
 
 void World::initWMOs()
 {
@@ -895,6 +891,8 @@ void World::draw()
 			loading = true;
 		}
 	}
+
+	botNodes.Draw(currentMapId);
 
 }
 

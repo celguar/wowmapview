@@ -14,12 +14,15 @@ struct Clickable {
 
 };
 
-struct MapEntry: public Clickable {
+struct MapEntry: public Clickable 
+{
 	std::string name, description;
+	uint32 mapId;
 	Font *font;
 };
 
-struct Bookmark: public Clickable {
+struct Bookmark: public Clickable
+{
 	std::string basename, name, label;
 	Vec3D pos;
 	float ah,av;

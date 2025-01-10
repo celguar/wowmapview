@@ -34,6 +34,7 @@ set(SOURCES
     database/DbField.cpp
     database/QueryObject.cpp
     database/QueryResult.cpp
+    nodes.cpp
 )
 
 set(HEADERS
@@ -70,6 +71,7 @@ set(HEADERS
     defines/ByteBuffer.h
     defines/Common.h
     defines/DBCFile.h
+    nodes.h
 )
 
 # Platform-specific settings

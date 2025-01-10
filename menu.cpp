@@ -16,6 +16,7 @@ Menu::Menu()
 	for(DBCFile::Iterator i=f.begin(); i!=f.end(); ++i) {
 		MapEntry e;
 
+		e.mapId = i->getUInt(0);
 		e.name = i->getString(1);
 		e.description = i->getString(3);
 
@@ -60,7 +61,6 @@ Menu::Menu()
 	bg = 0;
 	lastbg = -1;
 	randBackground();
-
 }
 
 
@@ -68,7 +68,6 @@ Menu::~Menu()
 {
     delete bg;
 }
-
 
 void Menu::randBackground()
 {
@@ -354,7 +353,6 @@ bool Clickable::hit(int x, int y)
 	return (y >= y0) && (y < y1) && (x >= x0) && (x < x1);
 }
 
-
 void Menu::mouseclick(SDL_MouseButtonEvent *e)
 {
 	//int y = e->y;
@@ -394,7 +392,9 @@ void Menu::mouseclick(SDL_MouseButtonEvent *e)
 
 		}
 
-	} else {
+	}
+	else
+	{
 		bool found = false;
 
 		for (unsigned int i=0; i<maps.size(); i++) {
@@ -404,12 +404,17 @@ void Menu::mouseclick(SDL_MouseButtonEvent *e)
 			}
 		}
 
-		if (found) {
-			if (sel != osel) {
+		if (found)
+		{
+			if (sel != osel)
+			{
 				if (world != 0) delete world;
 				world = new World(maps[sel].name.c_str());
+				world->setMapId(maps[sel].mapId);  // Set the map ID when creating world
 			}
-		} else {
+		} 
+		else
+		{
 			if (world != 0) delete world;
 			sel = -1;
 			world = 0;

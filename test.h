@@ -23,6 +23,7 @@ public:
 
 
 	Test(World *w, float ah0 = -90.0f, float av0 = -30.0f);
+	int getMapId() const { return world->currentMapId; }
 	~Test();
 
 	void tick(float t, float dt);
@@ -31,6 +32,9 @@ public:
 	void keypressed(SDL_KeyboardEvent *e);
 	void mousemove(SDL_MouseMotionEvent *e);
 	void mouseclick(SDL_MouseButtonEvent *e);
+
+	void moveToNearestNode();
+	void moveToNode(const TravelNode& node);
 
 
 };

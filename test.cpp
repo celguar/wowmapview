@@ -55,23 +55,26 @@ Test::~Test()
 
 void Test::tick(float t, float dt)
 {
-	Vec3D dir(1,0,0);
-	rotate(0,0, &dir.x,&dir.y, av*PI/180.0f);
-    rotate(0,0, &dir.x,&dir.z, ah*PI/180.0f);
+	Vec3D dir(1, 0, 0);
+	rotate(0, 0, &dir.x, &dir.y, av * PI / 180.0f);
+	rotate(0, 0, &dir.x, &dir.z, ah * PI / 180.0f);
 
+	// Updates camera and lookat based on movement
 	if (moving != 0) world->camera += dir * dt * movespd * moving;
 	if (strafing != 0) {
-		Vec3D right = dir % Vec3D(0,1,0);
+		Vec3D right = dir % Vec3D(0, 1, 0);
 		right.normalize();
 		world->camera += right * dt * movespd * strafing;
 	}
 	if (updown != 0) world->camera += Vec3D(0, dt * movespd * updown, 0);
 	world->lookat = world->camera + dir;
 
-	world->time += (world->modelmanager.v * /*360.0f*/ 90.0f * dt);
+	// Updates world time and animations
+	world->time += (world->modelmanager.v * 90.0f * dt);
 	world->animtime += dt * 1000.0f;
 	globalTime = (int)world->animtime;
 
+	// Updates world state
 	world->tick(dt);
 }
 
@@ -167,17 +170,11 @@ void Test::display(float t, float dt)
 			//f16->print(5, 60, "%02d:%02d", hh,mm);
 			f16->print(video.xres - 50, 0, "%02d:%02d", hh,mm);
 
-			/*f16->print(5, video.yres - 22, "(%.0f, %.0f, %.0f)",
-				-(world->camera.x - ZEROPOINT), 
-				-(world->camera.z - ZEROPOINT),
-				world->camera.y);*/
+			// Show the raw camera coordinates								
+			f16->print(5, video.yres - 42, "Camera: (%.0f, %.0f, %.0f)", world->camera.x, world->camera.y, world->camera.z);
 
-			f16->print(5, video.yres - 22, "(%.0f, %.0f, %.0f)",
-				-(world->camera.z - ZEROPOINT),
-				(world->camera.x - ZEROPOINT),
-				-(world->camera.y)
-			);
-
+			// Show the XYZ coordinates relative to the zero point
+			f16->print(5, video.yres - 22, "XYZ: (%.0f, %.0f, %.0f)", -(world->camera.z - ZEROPOINT), (world->camera.x - ZEROPOINT), -(world->camera.y));
 		}
 
 		if (world->loading) {
@@ -196,6 +193,46 @@ void Test::display(float t, float dt)
 
 };
 
+void Test::moveToNearestNode()
+{
+	if (world->botNodes.nodes.empty())
+		return;
+
+	// Find closest node
+	float minDist = FLT_MAX;
+	const TravelNode* nearestNode = nullptr;
+
+	for (const auto& node : world->botNodes.nodes)
+	{
+		float dist = (Vec3D(node.x, node.y, node.z) - world->camera).length();
+		if (dist < minDist)
+		{
+			minDist = dist;
+			nearestNode = &node;
+		}
+	}
+
+	if (nearestNode)
+	{
+		moveToNode(*nearestNode);
+		gLog("Moved to nearest node: %s\n", nearestNode->name.c_str());
+	}
+}
+
+void Test::moveToNode(const TravelNode& node)
+{
+	// Move camera to slightly above node position
+	world->camera = Vec3D(node.x, node.y, node.z);
+
+	// Update look target to look forward
+	Vec3D lookDir = Vec3D(cosf(ah * PI / 180.0f), 0, sinf(ah * PI / 180.0f));
+	world->lookat = world->camera + lookDir;
+
+	tick(0, 0.001f);
+
+	gLog("Moved to node: %s\n", node.name.c_str());
+}
+
 void Test::keypressed(SDL_KeyboardEvent *e)
 {
 	if (e->type == SDL_KEYDOWN) {
@@ -205,6 +242,33 @@ void Test::keypressed(SDL_KeyboardEvent *e)
 		if (e->keysym.sym == SDLK_ESCAPE) {
 		    gPop = true;
 		}
+
+		if (e->keysym.sym == SDLK_F11)
+		{
+			world->camera = Vec3D(-8949.95, -132.493, 83.5312);
+			tick(0, 0.001f);
+		}
+
+		if (e->keysym.sym == SDLK_F10)
+		{
+			world->camera = Vec3D(-8949.95, -132.493, 83.5312);
+			tick(0, 0.001f);
+		}
+
+		// Go to nearest node
+		if (e->keysym.sym == SDLK_n && (e->keysym.mod & KMOD_CTRL)){
+			moveToNearestNode();
+		}
+
+		// Cycle through nodes
+		if (e->keysym.sym == SDLK_g) {
+			static size_t currentNode = 0;
+			if (!world->botNodes.nodes.empty()) {
+				moveToNode(world->botNodes.nodes[currentNode]);
+				currentNode = (currentNode + 1) % world->botNodes.nodes.size();
+			}
+		}
+
 		// movement
 		if (e->keysym.sym == SDLK_w) {
 			moving = 1.0f;
@@ -248,6 +312,7 @@ void Test::keypressed(SDL_KeyboardEvent *e)
 		if (e->keysym.sym == SDLK_n) {
 			world->modelmanager.v++;
 		}
+
 		if (e->keysym.sym == SDLK_b) {
 			world->modelmanager.v--;
 			if (world->modelmanager.v<0) world->modelmanager.v = 0;
@@ -348,7 +413,6 @@ void Test::keypressed(SDL_KeyboardEvent *e)
 			fprintf(bf, "%s %f %f %f  %f %f  %s\n", world->basename.c_str(), world->camera.x, world->camera.y, world->camera.z, ah, av, areaName.c_str());
 			fclose(bf);
 		}
-
 	} else {
 		// key UP
 

@@ -26,6 +26,10 @@
 #include "menu.h"
 #include "areadb.h"
 
+#include "Database\Database.h"
+
+Database GameDb;
+
 int fullscreen = 0;
 
 std::string gamePath = "D:\\twmoa_1171";//"./";
@@ -73,12 +77,49 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 }
 #endif*/
 
+
+std::string MakeConnectionString()
+{
+    std::string mysql_host;
+    std::string mysql_port;
+    std::string mysql_user;
+    std::string mysql_pass;
+    std::string mysql_db;
+
+    if (mysql_host.empty())
+        mysql_host = "127.0.0.1";
+
+    if (mysql_port.empty())
+        mysql_port = "3306";
+
+    if (mysql_user.empty())
+        mysql_user = "root";
+
+    if (mysql_pass.empty())
+        mysql_pass = "root";
+
+    if (mysql_db.empty())
+        mysql_db = "vmangos_world_worldbot";
+
+    return mysql_host + ";" + mysql_port + ";" + mysql_user + ";" + mysql_pass + ";" + mysql_db;
+}
+
 int main(int argc, char *argv[])
 {
+    std::string const connection_string = MakeConnectionString();
+
+    printf("\nConnecting to database.\n");
+    if (!GameDb.Initialize(connection_string.c_str()))
+    {
+        printf("\nError: Cannot connect to world database!\n");
+        getchar();
+        return 1;
+    }
+
     srand((unsigned int)time(0));
 
-    int xres = 1024;
-    int yres = 768;
+    int xres = 1600;
+    int yres = 1200;
 
     bool usePatch = true;
 
@@ -195,7 +236,7 @@ int main(int argc, char *argv[])
             // patch goes first -> fake priority handling
             sprintf(path, "%s%s", gamePath.c_str(), "patch.MPQ");
             archives.push_back(new MPQArchive(path));
-            sprintf(path, "%s%s", gamePath.c_str(), "patch-6.MPQ");
+            sprintf(path, "%s%s", gamePath.c_str(), "patch-5.MPQ");
             archives.push_back(new MPQArchive(path));
         }
 

@@ -6,6 +6,7 @@
 #include "wmo.h"
 #include "frustum.h"
 #include "sky.h"
+#include "nodes.h"
 
 #include <string>
 
@@ -18,7 +19,6 @@ class World {
 	MapTile *maptilecache[MAPTILECACHESIZE];
 	MapTile *current[3][3];
 	int ex,ez;
-
 public:
 
 	std::string basename;
@@ -83,6 +83,11 @@ public:
 
 	/// Get the tile on wich the camera currently is on
 	unsigned int getAreaID();
+
+	WorldBotNodes botNodes;
+	int currentMapId;
+	void setMapId(int mapId) { currentMapId = mapId; }
+	uint32 getMapId() const { return currentMapId; }
 };
 
 

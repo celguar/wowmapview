@@ -27,7 +27,7 @@ Model::Model(std::string name, bool forceAnim) : ManagedItem(name), forceAnim(fo
 	// I'm removing them until I can fix emission speed so it doesn't get this crazy
 	if (false
 	|| name=="World\\Kalimdor\\Orgrimmar\\Passivedoodads\\Orgrimmarbonfire\\Orgrimmarsmokeemitter.Mdx"	
-	|| name=="World\\Kalimdor\\Orgrimmar\\Passivedoodads\\Orgrimmarbonfire\\Orgrimmarbonfire01.Mdx"	
+	//|| name=="World\\Kalimdor\\Orgrimmar\\Passivedoodads\\Orgrimmarbonfire\\Orgrimmarbonfire01.Mdx"	
 	) {
         header.nParticleEmitters = 0;
 	}
@@ -1095,9 +1095,9 @@ void Model::draw()
 		glDisable(GL_FOG);
 
 		// draw particle systems
-		for (size_t i=0; i<header.nParticleEmitters; i++) {
+		/*for (size_t i = 0; i<header.nParticleEmitters; i++) {
 			particleSystems[i].draw();
-		}
+		}*/
 
 		// draw ribbons
 		for (size_t i=0; i<header.nRibbonEmitters; i++) {
