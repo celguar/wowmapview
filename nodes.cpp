@@ -17,40 +17,141 @@
 extern Database GameDb;
 
 const float WorldBotNodes::DEFAULT_BOX_SIZE = 3.0f;  // Make box 3x3x3 units
+const float WorldBotNodes::PATH_POINT_SIZE = 1.0f;  // Smaller than boxes
 
 void WorldBotNodes::LoadFromDB()
 {
     nodes.clear();
 
-    std::string query = "SELECT id, name, map_id, x, y, z, linked FROM ai_playerbot_travelnode ORDER BY id";
-    auto result = GameDb.Query(query.c_str());
-    if (!result)
-        return;
+    // Load nodes
+    auto result = GameDb.Query("SELECT id, name, map_id, x, y, z, linked FROM ai_playerbot_travelnode ORDER BY id");
+    if (result)
+    {
+        do {
+            DbField* fields = result->fetchCurrentRow();
 
-    do {
-        DbField* fields = result->fetchCurrentRow();
+            TravelNode node;
+            node.id = fields[0].GetUInt32();
+            node.name = fields[1].GetString();
+            node.mapId = fields[2].GetUInt32();
+            node.x = fields[3].GetFloat();
+            node.y = fields[4].GetFloat();
+            node.z = fields[5].GetFloat();
+            node.linked = fields[6].GetUInt8();
 
-        TravelNode node;
-        node.id = fields[0].GetUInt32();
-        node.name = fields[1].GetString();
-        node.mapId = fields[2].GetUInt32();
-        node.x = fields[3].GetFloat();
-        node.y = fields[4].GetFloat();
-        node.z = fields[5].GetFloat();
-        node.linked = fields[6].GetUInt8();
+            if (node.mapId != gWorld->currentMapId)
+                continue;
 
-        if (node.mapId != gWorld->currentMapId)
+            gLog("Loaded travel node %u: %s (%.2f, %.2f, %.2f) on map %u\n", node.id, node.name.c_str(), node.x, node.y, node.z, node.mapId);
+
+            // Convert WoW coordinates to OpenGL coordinates
+            node.position = Vec3D(-(node.y - ZEROPOINT), (node.z), -(node.x - ZEROPOINT));
+            node.radius = 2.0f;
+
+            nodes.push_back(node);
+
+        } while (result->NextRow());
+    }
+
+    // Load links
+    result = GameDb.Query("SELECT node_id, to_node_id, type, object, distance, swim_distance, extra_cost, calculated, max_creature_0, max_creature_1, max_creature_2 FROM ai_playerbot_travelnode_link");
+    if (result)
+    {
+        do {
+            DbField* fields = result->fetchCurrentRow();
+            TravelNodeLink link;
+            link.fromNodeId = fields[0].GetUInt32();
+            link.toNodeId = fields[1].GetUInt32();
+            link.type = fields[2].GetUInt8();
+            link.object = fields[3].GetUInt32();
+            link.distance = fields[4].GetFloat();
+            link.swimDistance = fields[5].GetFloat();
+            link.extraCost = fields[6].GetFloat();
+            link.calculated = fields[7].GetBool();
+            link.maxCreature[0] = fields[8].GetUInt8();
+            link.maxCreature[1] = fields[9].GetUInt8();
+            link.maxCreature[2] = fields[10].GetUInt8();
+            links.push_back(link);
+        } while (result->NextRow());
+    }
+
+    // Load path points
+    result = GameDb.Query("SELECT node_id, to_node_id, nr, map_id, x, y, z FROM ai_playerbot_travelnode_path ORDER BY node_id, to_node_id, nr");
+    if (result)
+    {
+        do {
+            DbField* fields = result->fetchCurrentRow();
+            TravelNodePathPoint point;
+            point.fromNodeId = fields[0].GetUInt32();
+            point.toNodeId = fields[1].GetUInt32();
+            point.nr = fields[2].GetUInt32();
+            point.mapId = fields[3].GetUInt32();
+            point.x = fields[4].GetFloat();
+            point.y = fields[5].GetFloat();
+            point.z = fields[6].GetFloat();
+
+            // Convert coordinates
+            point.position = Vec3D(-(point.y - ZEROPOINT), point.z, -(point.x - ZEROPOINT));
+            pathPoints.push_back(point);
+        } while (result->NextRow());
+    }
+}
+
+void WorldBotNodes::DrawSphere(const Vec3D& pos, float radius, const Vec4D& color)
+{
+    glColor4f(color.x, color.y, color.z, color.w);
+
+    static const int segments = 12;
+
+    // Draw a simple spherical point using circles in three planes
+    for (int i = 0; i < 3; i++) {
+        glBegin(GL_LINE_LOOP);
+        for (int j = 0; j < segments; j++) {
+            float theta = 2.0f * PI * float(j) / float(segments);
+            float x = radius * cosf(theta);
+            float y = radius * sinf(theta);
+            switch (i) {
+            case 0: glVertex3f(pos.x + x, pos.y + y, pos.z); break;
+            case 1: glVertex3f(pos.x + x, pos.y, pos.z + y); break;
+            case 2: glVertex3f(pos.x, pos.y + x, pos.z + y); break;
+            }
+        }
+        glEnd();
+    }
+}
+
+void WorldBotNodes::Draw(int mapId)
+{
+    // Enable states for transparent rendering
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+
+    // Draw nodes (boxes)
+    for (const auto& node : nodes)
+    {
+        if (node.mapId != mapId)
             continue;
 
-		gLog("Loaded travel node %u: %s (%.2f, %.2f, %.2f) on map %u\n", node.id, node.name.c_str(), node.x, node.y, node.z, node.mapId);
+        Vec4D color = node.linked ?
+            Vec4D(0.0f, 1.0f, 0.0f, 0.7f) :  // Green for linked
+            Vec4D(1.0f, 0.0f, 0.0f, 0.7f);   // Red for unlinked
 
-        // Convert WoW coordinates to OpenGL coordinates
-		node.position = Vec3D(-(node.y - ZEROPOINT), (node.z), -(node.x - ZEROPOINT));
-        node.radius = 2.0f;
+        DrawBox(node.position, DEFAULT_BOX_SIZE, color);
+    }
 
-        nodes.push_back(node);
+    // Draw links
+    DrawLinks(mapId);
 
-    } while (result->NextRow());
+    // Draw path points
+    DrawPathPoints(mapId);
+
+    // Reset states
+    glDepthMask(GL_TRUE);
+    glEnable(GL_TEXTURE_2D);
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void WorldBotNodes::DrawBox(const Vec3D& pos, float size, const Vec4D& color)
@@ -101,35 +202,40 @@ void WorldBotNodes::DrawBox(const Vec3D& pos, float size, const Vec4D& color)
     glEnd();
 }
 
-void WorldBotNodes::Draw(int mapId)
+void WorldBotNodes::DrawLinks(int mapId)
 {
-    // Enable transparency
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glLineWidth(2.0f);  // Thicker lines for links
+    glColor4f(0.0f, 1.0f, 0.0f, 0.4f);  // Semi-transparent green
 
-    // Disable texturing for solid colors
-    glDisable(GL_TEXTURE_2D);
-
-    // Enable depth testing but disable depth writing for transparency
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
-
-    // Draw all boxes
-    for (const auto& node : nodes)
+    glBegin(GL_LINES);
+    for (const auto& link : links)
     {
-        if (node.mapId != mapId)
+        // Find connected nodes
+        auto fromNode = std::find_if(nodes.begin(), nodes.end(),
+            [&](const TravelNode& n) { return n.id == link.fromNodeId; });
+        auto toNode = std::find_if(nodes.begin(), nodes.end(),
+            [&](const TravelNode& n) { return n.id == link.toNodeId; });
+
+        if (fromNode != nodes.end() && toNode != nodes.end() &&
+            fromNode->mapId == mapId && toNode->mapId == mapId)
+        {
+            glVertex3fv(fromNode->position);
+            glVertex3fv(toNode->position);
+        }
+    }
+    glEnd();
+    glLineWidth(1.0f);
+}
+
+void WorldBotNodes::DrawPathPoints(int mapId)
+{
+    Vec4D pathColor(1.0f, 1.0f, 0.0f, 0.7f);  // Yellow for path points
+
+    for (const auto& point : pathPoints)
+    {
+        if (point.mapId != mapId)
             continue;
 
-        // Choose color based on linked status - use high alpha for visibility
-        Vec4D color = node.linked ?
-            Vec4D(0.0f, 1.0f, 0.0f, 0.7f) :  // Green for linked
-            Vec4D(1.0f, 0.0f, 0.0f, 0.7f);   // Red for unlinked
-
-        DrawBox(node.position, DEFAULT_BOX_SIZE, color);
+        DrawSphere(point.position, PATH_POINT_SIZE, pathColor);
     }
-
-    // Reset states
-    glDepthMask(GL_TRUE);
-    glEnable(GL_TEXTURE_2D);
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }

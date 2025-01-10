@@ -24,22 +24,48 @@ struct TravelNode {
     float radius;
 };
 
+struct TravelNodeLink {
+    uint32 fromNodeId;
+    uint32 toNodeId;
+    uint8 type;
+    uint32 object;
+    float distance;
+    float swimDistance;
+    float extraCost;
+    bool calculated;
+    uint8 maxCreature[3];
+};
+
+struct TravelNodePathPoint {
+    uint32 fromNodeId;
+    uint32 toNodeId;
+    uint32 nr;
+    uint32 mapId;
+    float x, y, z;
+    Vec3D position; // Converted position
+};
+
 class WorldBotNodes {
 public:
     static const float DEFAULT_BOX_SIZE;
+    static const float PATH_POINT_SIZE;
 
     void LoadFromDB();
     void Draw(int mapId);
 
     std::vector<TravelNode> nodes;
+    std::vector<TravelNodeLink> links;
+    std::vector<TravelNodePathPoint> pathPoints;
 
 private:
     GLuint sphereDisplayList;
 
     void DrawBox(const Vec3D& pos, float size, const Vec4D& color);
+    void DrawLinks(int mapId);
+    void DrawPathPoints(int mapId);
+    void DrawSphere(const Vec3D& pos, float radius, const Vec4D& color);
 
     Model* nodeModel;
-
 };
 
 #endif

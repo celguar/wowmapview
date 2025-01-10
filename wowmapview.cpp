@@ -77,7 +77,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 }
 #endif*/
 
-
 std::string MakeConnectionString()
 {
     std::string mysql_host;
