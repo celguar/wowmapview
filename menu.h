@@ -25,6 +25,7 @@ struct Bookmark: public Clickable
 {
 	std::string basename, name, label;
 	Vec3D pos;
+	uint32 mapId;
 	float ah,av;
 };
 

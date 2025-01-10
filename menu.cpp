@@ -382,6 +382,7 @@ void Menu::mouseclick(SDL_MouseButtonEvent *e)
 
 					world = new World(bookmarks[i].basename.c_str());
 					world->camera = bookmarks[i].pos;
+					world->setMapId(bookmarks[i].mapId);  // Set the map ID when creating world
 
 					cx = (int) (bookmarks[i].pos.x / TILESIZE);
 					cz = (int) (bookmarks[i].pos.z / TILESIZE);
@@ -436,7 +437,7 @@ void Menu::refreshBookmarks()
 
 	while (!f.eof()) {
 		Bookmark b;
-		f >> b.basename >> b.pos.x >> b.pos.y >> b.pos.z >> b.ah >> b.av;
+		f >> b.basename >> b.pos.x >> b.pos.y >> b.pos.z >> b.mapId >> b.ah >> b.av;
 		if (f.eof()) break;
 
 		char c;
@@ -455,7 +456,9 @@ void Menu::refreshBookmarks()
 		// check for the basename
 		bool mapfound = false;
 		for (unsigned int i=0; i<maps.size(); i++) {
-			if (maps[i].name == b.basename) {
+			if (maps[i].name == b.basename)
+			{
+				b.mapId = maps[i].mapId;
 				mapfound = true;
 				break;
 			}
