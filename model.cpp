@@ -27,7 +27,7 @@ Model::Model(std::string name, bool forceAnim) : ManagedItem(name), forceAnim(fo
 	// I'm removing them until I can fix emission speed so it doesn't get this crazy
 	if (false
 	|| name=="World\\Kalimdor\\Orgrimmar\\Passivedoodads\\Orgrimmarbonfire\\Orgrimmarsmokeemitter.Mdx"	
-	//|| name=="World\\Kalimdor\\Orgrimmar\\Passivedoodads\\Orgrimmarbonfire\\Orgrimmarbonfire01.Mdx"	
+	|| name=="World\\Kalimdor\\Orgrimmar\\Passivedoodads\\Orgrimmarbonfire\\Orgrimmarbonfire01.Mdx"	
 	) {
         header.nParticleEmitters = 0;
 	}
