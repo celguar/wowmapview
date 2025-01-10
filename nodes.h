@@ -49,6 +49,8 @@ class WorldBotNodes {
 public:
     static const float DEFAULT_BOX_SIZE;
     static const float PATH_POINT_SIZE;
+    static const float TEXT_HEIGHT_OFFSET;
+    static const float VIEW_DISTANCE;
 
     void LoadFromDB();
     void Draw(int mapId);
@@ -64,6 +66,8 @@ private:
     void DrawLinks(int mapId);
     void DrawPathPoints(int mapId);
     void DrawSphere(const Vec3D& pos, float radius, const Vec4D& color);
+    void DrawNodeLabel(const TravelNode& node);
+    bool WorldToScreen(const Vec3D& worldPos, Vec2D& screenPos, bool& isVisible);
 
     Model* nodeModel;
 };

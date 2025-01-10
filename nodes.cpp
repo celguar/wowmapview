@@ -18,6 +18,8 @@ extern Database GameDb;
 
 const float WorldBotNodes::DEFAULT_BOX_SIZE = 3.0f;  // Make box 3x3x3 units
 const float WorldBotNodes::PATH_POINT_SIZE = 1.0f;  // Smaller than boxes
+const float WorldBotNodes::TEXT_HEIGHT_OFFSET = 1.0f;  // Adjust this value to position text higher/lower
+const float WorldBotNodes::VIEW_DISTANCE = 300.0f;  // Draw nodes within 1000 units
 
 void WorldBotNodes::LoadFromDB()
 {
@@ -122,40 +124,52 @@ void WorldBotNodes::DrawSphere(const Vec3D& pos, float radius, const Vec4D& colo
 
 void WorldBotNodes::Draw(int mapId)
 {
-    // Enable states for transparent rendering
+    glPushAttrib(GL_ENABLE_BIT | GL_DEPTH_BUFFER_BIT | GL_CURRENT_BIT);
+
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_TEXTURE_2D);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
 
-    // Draw nodes (boxes)
+    DrawLinks(mapId);
+    //DrawPathPoints(mapId);
+
     for (const auto& node : nodes)
     {
         if (node.mapId != mapId)
             continue;
 
+        float distanceToCamera = (node.position - gWorld->camera).length();
+        if (distanceToCamera > VIEW_DISTANCE)
+            continue;
+
         Vec4D color = node.linked ?
-            Vec4D(0.0f, 1.0f, 0.0f, 0.7f) :  // Green for linked
-            Vec4D(1.0f, 0.0f, 0.0f, 0.7f);   // Red for unlinked
+            Vec4D(0.0f, 1.0f, 0.0f, 0.7f) :
+            Vec4D(1.0f, 0.0f, 0.0f, 0.7f);
 
         DrawBox(node.position, DEFAULT_BOX_SIZE, color);
     }
 
-    // Draw links
-    DrawLinks(mapId);
+    glPopAttrib();
 
-    // Draw path points
-    DrawPathPoints(mapId);
+    // Draw labels last
+    for (const auto& node : nodes)
+    {
+        if (node.mapId != mapId)
+            continue;
 
-    // Reset states
-    glDepthMask(GL_TRUE);
-    glEnable(GL_TEXTURE_2D);
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        DrawNodeLabel(node);
+    }
 }
 
 void WorldBotNodes::DrawBox(const Vec3D& pos, float size, const Vec4D& color)
 {
+    // Skip if too far from camera
+    float distanceToCamera = (pos - gWorld->camera).length();
+    if (distanceToCamera > VIEW_DISTANCE) // Same view distance as labels
+        return;
+
     float half = size / 2.0f;
 
     // Set the color with transparency
@@ -219,6 +233,13 @@ void WorldBotNodes::DrawLinks(int mapId)
         if (fromNode != nodes.end() && toNode != nodes.end() &&
             fromNode->mapId == mapId && toNode->mapId == mapId)
         {
+            // Check if either end of the link is within view distance
+            float distanceFrom = (fromNode->position - gWorld->camera).length();
+            float distanceTo = (toNode->position - gWorld->camera).length();
+
+            if (distanceFrom > VIEW_DISTANCE && distanceTo > VIEW_DISTANCE)
+                continue;  // Skip if both ends are too far
+
             glVertex3fv(fromNode->position);
             glVertex3fv(toNode->position);
         }
@@ -236,6 +257,113 @@ void WorldBotNodes::DrawPathPoints(int mapId)
         if (point.mapId != mapId)
             continue;
 
+        // Skip if too far from camera
+        float distanceToCamera = (point.position - gWorld->camera).length();
+        if (distanceToCamera > VIEW_DISTANCE)
+            continue;
+
         DrawSphere(point.position, PATH_POINT_SIZE, pathColor);
     }
+}
+
+void WorldBotNodes::DrawNodeLabel(const TravelNode& node)
+{
+    Vec3D camera = gWorld->camera;
+
+    // Skip if node is too far from camera
+    float distanceToCamera = (node.position - camera).length();
+    if (distanceToCamera > VIEW_DISTANCE)
+        return;
+
+    // Create label text
+    char label[256];
+    snprintf(label, sizeof(label), "[%u] %s", node.id, node.name.c_str());
+
+    // Calculate the position above the box in world space
+    Vec3D labelPos = node.position;
+    labelPos.y += DEFAULT_BOX_SIZE + 2.0f;
+
+    // Transform world position to screen coordinates
+    Vec2D screenPos;
+    bool isVisible;
+    if (!WorldToScreen(labelPos, screenPos, isVisible) || !isVisible)
+        return;
+
+    // Save states
+    glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+
+    // Switch to 2D rendering mode
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, viewport[2], viewport[3], 0, -1, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    // Calculate text position
+    float textWidth = f16->textwidth(label);
+    float screenX = screenPos.x - (textWidth / 2.0f);
+    float screenY = screenPos.y;
+
+    // Setup text rendering
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glEnable(GL_TEXTURE_2D);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Draw text outline
+    glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            if (dx == 0 && dy == 0) continue;
+            f16->print(screenX + dx, screenY + dy, "%s", label);
+        }
+    }
+
+    // Draw text
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    f16->print(screenX, screenY, "%s", label);
+
+    // Restore states
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glPopAttrib();
+}
+
+bool WorldBotNodes::WorldToScreen(const Vec3D& worldPos, Vec2D& screenPos, bool& isVisible)
+{
+    // Get current matrices and viewport
+    GLint viewport[4];
+    GLdouble mvmatrix[16], projmatrix[16];
+
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    glGetDoublev(GL_MODELVIEW_MATRIX, mvmatrix);
+    glGetDoublev(GL_PROJECTION_MATRIX, projmatrix);
+
+    // Project world position to screen coordinates
+    GLdouble winX, winY, winZ;
+    gluProject(worldPos.x, worldPos.y, worldPos.z,
+        mvmatrix, projmatrix, viewport,
+        &winX, &winY, &winZ);
+
+    // Check if point is behind camera or outside frustum
+    isVisible = (winZ <= 1.0f);
+    if (!isVisible)
+        return false;
+
+    // Convert OpenGL screen coordinates to our desired screen coordinates
+    screenPos.x = winX;
+    screenPos.y = viewport[3] - winY;  // Flip Y coordinate
+
+    return true;
 }
