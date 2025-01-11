@@ -45,8 +45,14 @@ struct TravelNodePathPoint {
     Vec3D position; // Converted position
 };
 
+
+
 class WorldBotNodes {
 public:
+
+    WorldBotNodes(); 
+    ~WorldBotNodes();
+
     static const float DEFAULT_BOX_SIZE;
     static const float PATH_POINT_SIZE;
     static const float TEXT_HEIGHT_OFFSET;
@@ -70,6 +76,10 @@ private:
     bool WorldToScreen(const Vec3D& worldPos, Vec2D& screenPos, bool& isVisible);
 
     Model* nodeModel;
+    int nodeModelId;
+    std::string modelName;
+    bool LoadNodeModel();
+    void DrawModel(const Vec3D& pos, const Vec4D& color);
 };
 
 #endif

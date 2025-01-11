@@ -21,6 +21,18 @@ const float WorldBotNodes::PATH_POINT_SIZE = 1.0f;  // Smaller than boxes
 const float WorldBotNodes::TEXT_HEIGHT_OFFSET = 1.0f;  // Adjust this value to position text higher/lower
 const float WorldBotNodes::VIEW_DISTANCE = 300.0f;  // Draw nodes within 1000 units
 
+WorldBotNodes::WorldBotNodes() : nodeModel(nullptr)
+{
+    LoadNodeModel();
+}
+
+WorldBotNodes::~WorldBotNodes()
+{
+    if (nodeModelId) {
+        gWorld->modelmanager.delbyname(modelName);
+    }
+}
+
 void WorldBotNodes::LoadFromDB()
 {
     nodes.clear();
@@ -124,34 +136,61 @@ void WorldBotNodes::DrawSphere(const Vec3D& pos, float radius, const Vec4D& colo
 
 void WorldBotNodes::Draw(int mapId)
 {
-    glPushAttrib(GL_ENABLE_BIT | GL_DEPTH_BUFFER_BIT | GL_CURRENT_BIT);
+    if (!nodeModel && !LoadNodeModel()) {
+        // If model loading failed, fall back to drawing boxes
+        glPushAttrib(GL_ENABLE_BIT | GL_DEPTH_BUFFER_BIT | GL_CURRENT_BIT);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_TEXTURE_2D);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_TEXTURE_2D);
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
 
-    DrawLinks(mapId);
-    //DrawPathPoints(mapId);
+        DrawLinks(mapId);
+        //DrawPathPoints(mapId);
 
-    for (const auto& node : nodes)
-    {
-        if (node.mapId != mapId)
-            continue;
+        // Draw normal boxes instead
+        for (const auto& node : nodes)
+        {
+            if (node.mapId != mapId)
+                continue;
 
-        float distanceToCamera = (node.position - gWorld->camera).length();
-        if (distanceToCamera > VIEW_DISTANCE)
-            continue;
+            Vec4D color = node.linked ?
+                Vec4D(0.0f, 1.0f, 0.0f, 0.7f) :
+                Vec4D(1.0f, 0.0f, 0.0f, 0.7f);
 
-        Vec4D color = node.linked ?
-            Vec4D(0.0f, 1.0f, 0.0f, 0.7f) :
-            Vec4D(1.0f, 0.0f, 0.0f, 0.7f);
+            DrawBox(node.position, DEFAULT_BOX_SIZE, color);
+        }
 
-        DrawBox(node.position, DEFAULT_BOX_SIZE, color);
+        glPopAttrib();
     }
+    else {
+        // Draw with model
+        glPushAttrib(GL_ENABLE_BIT | GL_DEPTH_BUFFER_BIT | GL_CURRENT_BIT);
 
-    glPopAttrib();
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_TEXTURE_2D);
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+
+        DrawLinks(mapId);
+        //DrawPathPoints(mapId);
+
+        for (const auto& node : nodes)
+        {
+            if (node.mapId != mapId)
+                continue;
+
+            Vec4D color = node.linked ?
+                Vec4D(0.0f, 1.0f, 0.0f, 0.7f) :
+                Vec4D(1.0f, 0.0f, 0.0f, 0.7f);
+
+            DrawModel(node.position, color);
+        }
+
+        glPopAttrib();
+    }
 
     // Draw labels last
     for (const auto& node : nodes)
@@ -214,6 +253,66 @@ void WorldBotNodes::DrawBox(const Vec3D& pos, float size, const Vec4D& color)
     glVertex3f(pos.x - half, pos.y + half, pos.z - half);
 
     glEnd();
+}
+
+bool WorldBotNodes::LoadNodeModel()
+{
+    if (!gWorld) {
+        gLog("Error: gWorld not initialized\n");
+        return false;
+    }
+
+    modelName = "Creature\\KelThuzad\\KelThuzad.m2";
+
+    // Force animated flag for character models
+    nodeModel = new Model(modelName, true);
+
+    nodeModelId = gWorld->modelmanager.add(modelName);
+    if (nodeModelId) {
+        nodeModel = (Model*)gWorld->modelmanager.items[nodeModelId];
+        if (nodeModel && nodeModel->ok) {
+            // Debug texture info
+            if (nodeModel->HasTextures()) {
+                for (size_t i = 0; i < nodeModel->GetTextureCount(); i++) {
+                    gLog("Model texture %d: %d\n", i, nodeModel->GetTexture(i));
+                }
+            }
+            else {
+                gLog("Model has no textures\n");
+            }
+            return true;
+        }
+    }
+    gLog("Failed to load node model: %s\n", modelName.c_str());
+    return false;
+}
+
+void WorldBotNodes::DrawModel(const Vec3D& pos, const Vec4D& color)
+{
+    if (!nodeModel || !nodeModel->ok)
+        return;
+
+    float distanceToCamera = (pos - gWorld->camera).length();
+    if (distanceToCamera > VIEW_DISTANCE)
+        return;
+
+    GLfloat currentColor[4];
+    glGetFloatv(GL_CURRENT_COLOR, currentColor);
+
+    glColor4f(color.x, color.y, color.z, color.w);
+
+    glPushMatrix();
+    {
+        glTranslatef(pos.x, pos.y, pos.z);
+
+        const float scale = 1.0f;
+        glScalef(scale, scale, scale);
+
+        nodeModel->draw();
+    }
+    glPopMatrix();
+
+    glColor4fv(currentColor);
 }
 
 void WorldBotNodes::DrawLinks(int mapId)

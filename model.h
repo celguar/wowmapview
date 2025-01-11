@@ -166,6 +166,10 @@ public:
 	Bone *bones;
 	TextureID *textures;
 
+	size_t GetTextureCount() const { return header.nTextures; }
+	TextureID GetTexture(size_t index) const { return textures[index]; }
+	bool HasTextures() const { return textures != nullptr && header.nTextures > 0; }
+
 	bool ok;
 	bool ind;
 

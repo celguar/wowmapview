@@ -10,8 +10,16 @@ Model::Model(std::string name, bool forceAnim) : ManagedItem(name), forceAnim(fo
 	// replace .MDX with .M2
 	char tempname[256];
 	strcpy(tempname,name.c_str());
-	tempname[name.length()-2] = '2';
-	tempname[name.length()-1] = 0;
+
+	// Check if filename ends with .MDX or .mdx
+	size_t len = name.length();
+	if (len > 4 &&
+		((_stricmp(tempname + len - 4, ".MDX") == 0) ||
+			(_stricmp(tempname + len - 4, ".mdx") == 0)))
+	{
+		tempname[len - 2] = '2';
+		tempname[len - 1] = 0;
+	}
 
 	MPQFile f(tempname);
 	ok = !f.isEof();
@@ -262,21 +270,21 @@ void Model::initCommon(MPQFile &f)
 	//rad = std::max(vmin.length(),vmax.length());
 
 	// textures
-	ModelTextureDef *texdef = (ModelTextureDef*)(f.getBuffer() + header.ofsTextures);
+	ModelTextureDef* texdef = (ModelTextureDef*)(f.getBuffer() + header.ofsTextures);
 	if (header.nTextures) {
 		textures = new TextureID[header.nTextures];
-		for (size_t i=0; i<header.nTextures; i++) {
+		for (size_t i = 0; i < header.nTextures; i++) {
 			char texname[256];
-			if (texdef[i].type == 0) {
-				strncpy(texname, f.getBuffer() + texdef[i].nameOfs, texdef[i].nameLen);
-				texname[texdef[i].nameLen] = 0;
-				std::string path(texname);
-				fixname(path);
-				textures[i] = video.textures.add(texname);
-			} else {
-				// special texture - only on characters and such...
-                textures[i] = 0;
-			}
+			strncpy(texname, f.getBuffer() + texdef[i].nameOfs, texdef[i].nameLen);
+			texname[texdef[i].nameLen] = 0;
+			std::string path(texname);
+			fixname(path);
+
+			// Debug the texture type and path
+			gLog("Loading texture %d: type %d, path: %s\n", i, texdef[i].type, path.c_str());
+
+			// Load the texture regardless of type for character models
+			textures[i] = video.textures.add(path);
 		}
 	}
 
